@@ -39,11 +39,12 @@
   --kr:"Do Hyeon", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
   color-scheme:dark;
 }
-html,body{height:100%}
+html,body{height:100%;overscroll-behavior:none}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--kr);font-size:16px;touch-action:manipulation}
 .wrap{--sw:min(640px,100%,calc((100dvh - 150px)*8/7));min-height:100%;margin:0 auto;padding-inline:16px;padding-block:14px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;box-sizing:border-box}
-.play{display:grid;grid-template-areas:"screen";justify-items:center;gap:14px;width:100%}
+.play{display:grid;grid-template-areas:"screen";justify-items:center;gap:14px;width:100%;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.play canvas,.play button{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .screen{grid-area:screen;position:relative;width:var(--sw);max-width:100%;aspect-ratio:8/7;container-type:inline-size;background:#000;border-radius:6px;overflow:hidden;box-shadow:0 0 0 3px var(--panel),0 0 0 6px #0c0a0e;touch-action:none;user-select:none;-webkit-user-select:none}
 #cv{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 .hud{position:absolute;inset:0;pointer-events:none;padding:2.2cqw 2.6cqw;display:flex;flex-direction:column;justify-content:space-between;text-shadow:0.4cqw 0.4cqw 0 #000}
@@ -80,11 +81,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--kr);font-s
 .ctrl.l{grid-area:left;justify-self:start}
 .ctrl.r{grid-area:right;justify-self:end}
 .ctrl .v{display:flex;flex-direction:column;gap:8px}
-.ctrl button{width:84px;height:84px;border-radius:50%;border:0;background:var(--panel);color:var(--ink);font-family:var(--pixel);font-size:20px;box-shadow:0 5px 0 #0c0a0e,inset 0 0 0 2px var(--line);touch-action:none;-webkit-tap-highlight-color:transparent}
+.ctrl button{position:relative;width:92px;height:92px;border-radius:50%;border:0;background:var(--panel);color:var(--ink);font-family:var(--pixel);font-size:20px;box-shadow:0 5px 0 #0c0a0e,inset 0 0 0 2px var(--line);touch-action:none;-webkit-tap-highlight-color:transparent}
 .ctrl .v button{width:58px;height:44px;border-radius:12px;font-size:13px}
 .ctrl button.on{background:var(--line);transform:translateY(4px);box-shadow:0 1px 0 #0c0a0e}
-.ctrl button.j{width:108px;height:108px;background:var(--accent);color:#1c1720;font-size:13px;box-shadow:0 5px 0 #8a3a06}
+.ctrl button.j{width:116px;height:116px;background:var(--accent);color:#1c1720;font-size:13px;box-shadow:0 5px 0 #8a3a06}
 .ctrl button.j.on{box-shadow:0 1px 0 #8a3a06}
+.ctrl button::after{content:"";position:absolute;inset:-16px;border-radius:24px}
 .rankb{position:absolute;left:2.6cqw;top:17cqw;font-family:var(--pixel);text-shadow:.4cqw .4cqw 0 #000}
 .rankb b{font-weight:400;font-size:6cqw;color:#ffd23f}
 .rankb span{font-size:3cqw;color:var(--ink);margin-left:.6cqw}
@@ -107,7 +109,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--kr);font-s
   .bar,.note{display:none}
   .fb,.lb{max-width:100%}
   .wrap{--sw:min(100%,calc((100dvh - 230px)*8/7));padding-block:10px;justify-content:center}
-  .play{grid-template-areas:"screen screen" "left right";grid-template-columns:1fr 1fr;align-items:center;max-width:var(--sw)}
+  .play{grid-template-areas:"screen screen" "left right";grid-template-columns:1fr 1fr;align-items:center;max-width:var(--sw);touch-action:none;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 22px)}
+  .ctrl{gap:18px}
+  html.playing,html.playing body{overflow:hidden}
 }
 @media (hover:none) and (orientation:landscape),(pointer:coarse) and (orientation:landscape){
   .wrap{--sw:min(calc((100dvh - 20px)*8/7),calc(100vw - 400px));padding-block:8px;padding-inline:max(16px,env(safe-area-inset-left,0px))}
@@ -653,6 +657,7 @@ document.querySelectorAll('[data-submit]').forEach(b=>b.addEventListener('click'
 }));
 function fillBoard(el,tab,rows,cls){
   el.innerHTML='';
+  const seen=new Set();rows=rows.filter(r=>{const k=String(r.name).trim().toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
   if(!rows.length){el.innerHTML='<li class="empty">'+(tab==='time'?'아직 완주 기록이 없어요':'아직 기록이 없어요')+'</li>';return;}
   rows.forEach((r,i)=>{const li=document.createElement('li');li.innerHTML='<span class="p"></span><span class="n"></span><span class="v"></span><span class="x"></span>';
     li.children[0].textContent=i+1;li.children[1].textContent=r.name;
@@ -666,7 +671,7 @@ async function loadLb(tab){
   lbTab=tab||lbTab;document.querySelectorAll('.tab2').forEach(t=>t.classList.toggle('on',t.dataset.lbtab===lbTab));
   const ul=$('lbList');
   if(!window.DHM_net){ul.innerHTML='<li class="empty">랭킹 서버에 연결할 수 없어요</li>';return;}
-  try{fillBoard(ul,lbTab,(await window.DHM_net.top(lbTab)).slice(0,20));}catch(e){ul.innerHTML='<li class="empty">랭킹을 불러오지 못했어요</li>';}
+  try{{const all=await window.DHM_net.top(lbTab);fillBoard(ul,lbTab,all);while(ul.children.length>20)ul.lastChild.remove();}}catch(e){ul.innerHTML='<li class="empty">랭킹을 불러오지 못했어요</li>';}
 }
 document.querySelectorAll('.tab2').forEach(t=>t.addEventListener('click',()=>loadLb(t.dataset.lbtab)));
 let rankTab='time';
@@ -927,9 +932,22 @@ scr.addEventListener('pointermove',e=>{
 const endDrag=e=>{if(!drag||e.pointerId!==drag.id)return;if(!drag.moved&&performance.now()-drag.t0<350)jump();drag=null;G.steerTo=null;};
 scr.addEventListener('pointerup',endDrag);scr.addEventListener('pointercancel',endDrag);
 
-function startGame(){initAudio();if(AC&&AC.state==='suspended')AC.resume();$('ovTitle').hidden=true;newGame();}
+const coarse=matchMedia('(pointer:coarse)').matches;
+function goFull(){if(!coarse||matchMedia('(display-mode: fullscreen),(display-mode: standalone)').matches)return;try{const el=document.documentElement;if(!document.fullscreenElement&&el.requestFullscreen)el.requestFullscreen({navigationUI:'hide'}).catch(()=>{});}catch(e){}}
+const playEl=document.querySelector('.play');
+const guard=e=>{if(e.target.closest('input,textarea,.ov button,.mini button'))return;if(e.cancelable)e.preventDefault();};
+playEl.addEventListener('touchstart',guard,{passive:false});
+playEl.addEventListener('touchmove',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
+playEl.addEventListener('touchend',guard,{passive:false});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.play'))e.preventDefault();});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>{if(e.target.closest('.play'))e.preventDefault();});
+let wasPlaying=false;
+function syncPlaying(){const on=coarse&&['intro','play','clear','pause'].includes(G.state);if(on!==wasPlaying){wasPlaying=on;document.documentElement.classList.toggle('playing',on);if(on){try{playEl.scrollIntoView({block:'center'});}catch(e){}}}}
+setInterval(syncPlaying,250);
+function startGame(){goFull();initAudio();if(AC&&AC.state==='suspended')AC.resume();$('ovTitle').hidden=true;newGame();}
 $('bStart').addEventListener('click',startGame);
-$('bRetry').addEventListener('click',()=>{$('ovOver').hidden=true;newGame();});
+$('bRetry').addEventListener('click',()=>{goFull();$('ovOver').hidden=true;newGame();});
 $('bNext').addEventListener('click',()=>{$('ovFinish').hidden=true;G.lap++;G.raceT=0;G.submitted=false;lineup();startStage(0);bgmStart();});
 let prevState='play';
 function togglePause(){
@@ -982,7 +1000,7 @@ try{
   const ts=d=>{const t=d.ts;return t&&t.toMillis?t.toMillis():0;};
   window.DHM_net={
     submit:rec=>write('scores',rec),
-    top:async kind=>{const q=kind==='time'?F.query(F.collection(db,'scores'),F.orderBy('time','asc'),F.limit(30)):F.query(F.collection(db,'scores'),F.orderBy('score','desc'),F.limit(30));return (await F.getDocs(q)).docs.map(x=>x.data());},
+    top:async kind=>{const q=kind==='time'?F.query(F.collection(db,'scores'),F.orderBy('time','asc'),F.limit(150)):F.query(F.collection(db,'scores'),F.orderBy('score','desc'),F.limit(150));return (await F.getDocs(q)).docs.map(x=>x.data());},
     comments:async()=>(await F.getDocs(F.query(F.collection(db,'comments'),F.orderBy('ts','desc'),F.limit(50)))).docs.map(x=>({...x.data(),ts:ts(x.data())})),
     comment:(name,text)=>write('comments',{name,text}),
   };
