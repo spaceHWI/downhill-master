@@ -248,7 +248,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--kr);font-s
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 ctx.imageSmoothingEnabled=false;
 const W=256,H=224,HY=76,BASE=200,K=14,RW=100;
-const JUMP_V=98,HILL_PX=22,ULTRA_P=0.035,ULTRA_T=6,ULTRA_V=7,GAP_MIN=22,GAP_A=26,GAP_B=42,STUMBLE_MOM=0.75,GEL_CLUSTER=0.25,GEL_TIME=1,VMAX=34,V0=13,RAMP=0.5,MOM_BASE=11,MOM_GEL=0.35,MOM_MAX=17;
+const JUMP_V=98,JUMP_COST=0.95,RAMP_CLEAR=58,HILL_PX=22,ULTRA_P=0.035,ULTRA_T=6,ULTRA_V=7,GAP_MIN=22,GAP_A=26,GAP_B=42,STUMBLE_MOM=0.75,GEL_CLUSTER=0.25,GEL_TIME=1,VMAX=34,V0=13,RAMP=0.5,MOM_BASE=11,MOM_GEL=0.35,MOM_MAX=17;
 
 /* ---------- sprites ---------- */
 function mk(rows,pal){
@@ -474,7 +474,7 @@ function newGame(){G.score=0;G.lap=1;G.hearts=3;G.mom=0;G.gels=0;G.raceT=0;G.sub
 
 function jump(){
   if(G.state!=='play'||G.jh>0||G.jv>0||G.fall>0||G.tumble>0)return;
-  G.jv=JUMP_V;SFX.jump();
+  G.jv=JUMP_V;G.speed*=JUMP_COST;SFX.jump();
 }
 const HEART='<svg viewBox="0 0 7 6" shape-rendering="crispEdges" aria-hidden="true"><path fill="#000" d="M0 1h1V0h2v1h1V0h2v1h1v2H6v1H5v1H4v1H3V5H2V4H1V3H0z"/><path fill="#ff4d5e" d="M1 1h2v1h1V1h2v2H5v1H4v1H3V4H2V3H1z"/><path fill="#ffc2c8" d="M1 1h1v1H1z"/></svg>';
 function drawHearts(lostIdx){const el=$('hHearts');let h='';for(let i=0;i<3;i++)h+=HEART;el.innerHTML=h;el.setAttribute('aria-label','하트 '+G.hearts+'개');[...el.children].forEach((c,i)=>{if(i>=G.hearts)c.classList.add('lost');if(i===lostIdx)c.classList.add('pop');});}
@@ -550,7 +550,7 @@ function update(dt){
 
   // spawn
   const d=diff();
-  while(G.nextSpawn<G.trav+230&&G.nextSpawn<st.len-35){spawn(G.nextSpawn);G.nextSpawn+=Math.max(GAP_MIN,rnd(GAP_A,GAP_B)/d);}
+  while(G.nextSpawn<G.trav+230&&G.nextSpawn<st.len-35){const z0=G.nextSpawn;spawn(z0);G.nextSpawn+=Math.max(GAP_MIN,rnd(GAP_A,GAP_B)/d);const last=G.objs[G.objs.length-1];if(last&&last.type==='ramp'&&last.z===z0)G.nextSpawn=Math.max(G.nextSpawn,z0+RAMP_CLEAR);}
   while(G.nextScen<G.trav+240){spawnScen(G.nextScen);G.nextScen+=rnd(5,9);}
 
   // objects
@@ -814,7 +814,6 @@ function render(){
   const st=STAGES[G.stage],gr=GROUND[st.ground];
   ctx.save();
   if(G.shake>0&&!reduce)ctx.translate(Math.round(rnd(-2,2)),Math.round(rnd(-2,2)));
-  if(!reduce&&G.state!=='title'){const roll=-G.curve*0.05*Math.min(1,G.speed/30);ctx.translate(128,150);ctx.rotate(roll);ctx.scale(1.09,1.09);ctx.translate(-128,-150);}
   const sk=SKY[st.sky],off0=Math.round(G.hill*HILL_PX);
   ctx.fillStyle=sk.top;ctx.fillRect(-20,-20,W+40,HY+40);
   if(bgc){const bx=((Math.round(G.bgX)%512)+512)%512;ctx.drawImage(bgc,-bx,off0);ctx.drawImage(bgc,512-bx,off0);}
